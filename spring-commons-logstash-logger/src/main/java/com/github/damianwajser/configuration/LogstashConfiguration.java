@@ -1,11 +1,13 @@
 package com.github.damianwajser.configuration;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.annotation.PostConstruct;
-import javax.servlet.Filter;
-
+import ch.qos.logback.classic.AsyncAppender;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.damianwajser.filter.MDCFilter;
+import net.logstash.logback.appender.LogstashTcpSocketAppender;
+import net.logstash.logback.encoder.LogstashEncoder;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -14,25 +16,22 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.damianwajser.filter.MDCFilter;
+import javax.annotation.PostConstruct;
+import javax.servlet.Filter;
+import java.util.HashMap;
+import java.util.Map;
 
-import ch.qos.logback.classic.AsyncAppender;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.LoggerContext;
-import net.logstash.logback.appender.LogstashTcpSocketAppender;
-import net.logstash.logback.encoder.LogstashEncoder;
+import static org.slf4j.Logger.ROOT_LOGGER_NAME;
 
 @Configuration
 @EnableConfigurationProperties
 @ConfigurationProperties(prefix = "logstash")
 public class LogstashConfiguration {
 
-	@Value("${logstash.destination:}")
+	@Value("${logstash.destination:localhost:5000}")
 	private String destination;
 
-	@Value("${logstash.appName:}")
+	@Value("${logstash.appName:test}")
 	private String appName;
 
 	@Value("${logstash.maxPayload:16000}")
@@ -50,14 +49,13 @@ public class LogstashConfiguration {
 
 	@PostConstruct
 	public void init() {
-
+		ObjectMapper mapper = new ObjectMapper();
+		Logger rootLogger = (Logger) LoggerFactory.getLogger(ROOT_LOGGER_NAME);
+		LoggerContext loggerContext = rootLogger.getLoggerContext();
+		Logger log = loggerContext.getLogger(LogstashConfiguration.class);
+		log.info("Configurate  Logger, destination: {}", destination);
 		if (destination != null && !destination.equals("")) {
-
-			ObjectMapper mapper = new ObjectMapper();
-			Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-			LoggerContext loggerContext = rootLogger.getLoggerContext();
 			// loggerContext.reset(); // shouldn't need to use that
-
 			LogstashTcpSocketAppender socketAppender = new LogstashTcpSocketAppender();
 			socketAppender.setName("logstash");
 			socketAppender.setContext(loggerContext);
